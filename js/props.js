@@ -4,6 +4,8 @@
 
     Key Code Reference Tags:
          -  #library_constructor                 🔨🔨 [LIBRARY] CONSTRUCTOR 🔨🔨
+         -  #component_level_instance_var_def
+         -  #component_level_constants           Component level constants are defined.
          -  #props_add_prop_method
          -  #props_display_panel_method
          -  #set_main_props_method
@@ -12,11 +14,15 @@
          -  #props_clean_up
          -  #props_add_prop_method               📌ADD PROPERTY METHOD!
 
-         -  #props_display_panel_method          Build Markup and display panel in 
+    HTML Markup          
+         -  #props_display_panel_method          Build <HTML> Markup and display panel in 
                                                  Browser. 🖍🖍🖍
         
-         -  #private_functions
+         -  #private_functions                   ⭐⭐⭐⭐⭐⭐ PRIVATE FUNCTIONS BEGIN ⭐⭐⭐⭐⭐⭐⭐
+
+    CSS...
          -  #build_prop_style_block              🖼🖼 CSS Styles 🖼🖼
+
          -  #build_Props_Style_Unselectable
          -  #create_prop_constructor             🔨🔨 [PROPERTY] OBJECT CONSTRUCTOR 🔨🔨
          -  #property_obj_custom_prop_def        CUSTOM PROPERTIES (property obj)
@@ -24,27 +30,40 @@
          -  #prop_id
          -  #prop_setup_color_change             set up event listener for value change of 'color' input tag
          -  #color_changed
+
          -  #prop_add_event_listener_method      {PROPERTY} Level Custom event listener for devs to use
          -  #run_prop_level_change_event_handlers
 
          -  #prop_sel_prop_method                SELECT PROPERTY
          -  #prop_de_sel_prop_method             DE-SELECT PROPERTY
 
+         -  #prop_hide_dropdown_method           Hides dropdown (if it is being shown)
+
          -  #drop_down_toggle                    Builds/Shows/ and Hides selection dropdown list! 🔨👀❌
+         -  #dropdown_scroll
+         -  #key_nav_dropdown                    👉Manage navigation keystrokes on dropdown 👈
+         -  #highlight_dropdown_option
          -  #proc_prop_option_selected           User selected option in selection dropdown list
          -  #prop_commit_changes_method
          -  #prop_begin_edit_method
+         -  #keystroke_is_non_data_value         Returns (true) if keystroke input is a non-data value
          -  #text_box_handle_keydown
          -  #text_box_handle_keyup
          -  #prop_toggle_prop_value              Toggle Property value on Double Click!
          -  #get_option_set_caption
 
+    HTML Markup
          -  #prop_markup_method                  Generate HTML markup for [Property] on panel   🖍🖍🖍
          -  #get_color_value_markup
+         -  #sel_first_prop
 
          -  #prop_container_event_listeners      👂CONTAINER EVENT LISTENERS👂
+         -  #panel_focus
+         -  #panel_blur
+         -  #key_down_nav                        Handle navigating panel and items in dropdown using the keyboard!
          -  #props_click
          -  #props_dbl_click
+
          -  #get_val                             GET VAL function!
          -
 
@@ -61,21 +80,37 @@
  *  #library_constructor
  *************************************************************************/ 
 function OrvProps(siContainerId) {
+
+   /*************************************************************************
+    *  
+    *  #component_level_instance_var_def
+    * 
+    *************************************************************************/     
     const sContainerId = siContainerId;
     const containerNd = document.getElementById(sContainerId)
     const props = this;
     let propsByIndex = [];
     let mainPropsObj;
-    let nLastSelectedPropIndex = -1;
+    let nLastSelectedPropIndex = -1; 
+    let nCurrentDropdownSelIndex = -1;
+    let nStartingDropdownSelIndex = -1;
 
     let swatchIdListByIndex = [];
     let changeEventHandlers = [];
+    let bEditingPanelValue = false;  // panel-level flag
 
+   /*************************************************************************
+    *  
+    *  #component_level_constants
+    * 
+    *************************************************************************/ 
     const ESC_KEY = 27;
     const ENTER_KEY = 13;
     const BACKSPACE_KEY = 8;
     const LEFTARROW_KEY = 37;
-    const RIGHTARROW_KEY = 39
+    const UPARROW_KEY = 38;
+    const RIGHTARROW_KEY = 39;
+    const DOWNARROW_KEY = 40;
     const HOME_KEY = 36;
     const END_KEY = 35;
     const INSERT_KEY = 45;
@@ -85,6 +120,9 @@ function OrvProps(siContainerId) {
     const CMD_KEY = 93;
     
 
+    // ** makes it so overall property panel can receive keyboard inputs...
+    containerNd.setAttribute("tabindex", "-1");
+    containerNd.style.outlineStyle = "none";
 
    /********************************************************************************
     * 
@@ -134,7 +172,7 @@ function OrvProps(siContainerId) {
    * 
    *   #run_change_event_handlers
    ********************************************************************************/     
-   function runChangeEventHandlers(propertyObj,vOldValue,vNewValue) {
+   function runChangeEventHandlers(propertyObj,vOldValue,vNewValue, sOperation) {
        const nMax = changeEventHandlers.length;
 
        for (let n=0; n< nMax; n++) {           
@@ -143,6 +181,7 @@ function OrvProps(siContainerId) {
            customEventObj = {};
            customEventObj.event = "change"
            customEventObj.level = "panel"
+           customEventObj.operation = sOperation
            customEventObj.timestamp = new Date();
            customEventObj.propertyObj = propertyObj;
            customEventObj.oldValue = vOldValue;
@@ -162,12 +201,15 @@ function OrvProps(siContainerId) {
   *   Call this Before removing a property panel from the page...
   *   (If you are not just leaving the page)
   * 
-  *   This includes removing any event listeners that need removing.
+  *   This includes removing any event listeners that need removing from memory.
   ********************************************************************************/ 
   props.cleanUp = function() {
       console.log("props.cleanUp() method called")
       containerNd.removeEventListener("click", propsClick);
       containerNd.removeEventListener("dblclick", propsDblClick);
+      containerNd.removeEventListener("keydown", keyDownNav);
+      containerNd.removeEventListener("focus", panelFocus);
+      containerNd.removeEventListener("blur", panelBlur);
   } // end of props.cleanUp() method
 
 
@@ -236,6 +278,9 @@ function OrvProps(siContainerId) {
 
         } // end if
 
+        // Make the first property in panel [Selected] automatically:
+        selFirstProp();
+
     } // end of props.displayPanel() method
     // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
@@ -261,11 +306,12 @@ function OrvProps(siContainerId) {
         styleBlockNd.id = STYLE_BLOCK_ID;
         const s = [];
 
+        // assume below is for a panel that does not have focus...
         s.push(".orvPropsTitlebar {");
         s.push("  box-sizing: border-box;");
         s.push("  overflow:hidden;");
         s.push("  position:absolute;");
-        s.push("  background: #E5E5E5;");
+        s.push("  background: #E6EAED;");
         s.push("  border-bottom:solid silver .5px;");
         s.push("  left:0px;");
         s.push("  right:0px;");
@@ -273,6 +319,22 @@ function OrvProps(siContainerId) {
         s.push("  height:18px;");
         s.push(buildPropsStyleUnselectable());
         s.push("}");
+
+
+        // title bar for panel with focus...
+        s.push(".orvPropsTitlebarFocus {");
+        s.push("  box-sizing: border-box;");
+        s.push("  overflow:hidden;");
+        s.push("  position:absolute;");
+        s.push("  background: #DFE1E5;");
+        s.push("  border-bottom:solid silver .5px;");
+        s.push("  left:0px;");
+        s.push("  right:0px;");
+        s.push("  top:0px;");
+        s.push("  height:18px;");
+        s.push(buildPropsStyleUnselectable());
+        s.push("}");
+
 
         s.push(".orvPropsTitlebarCaption {");
         s.push("  box-sizing: border-box;");
@@ -387,6 +449,10 @@ function OrvProps(siContainerId) {
         s.push("  font-size: 13px;");
         s.push("  text-height: 18px;");
         s.push("  background:#E4E6F1;");
+        s.push("}");
+
+        s.push(".orvPropDropdownListItmSpacer {");
+        s.push("  height: 10px;");
         s.push("}");
 
         s.push(".orvColorOptContnr {");
@@ -549,6 +615,13 @@ function OrvProps(siContainerId) {
         s.push("  text-overflow: ellipsis;");
         s.push("}");
 
+        s.push(".readOnlyNote {");
+        s.push("  font-size: 9pt;");
+        s.push("  color: #990000;");
+        s.push("  background: lightyellow;");
+        s.push("}");
+        
+
         s.push("#orvPropDescPanelDetails {");
         s.push("  position:absolute;");
         s.push("  box-sizing: border-box;");
@@ -594,6 +667,8 @@ function OrvProps(siContainerId) {
 function CreateProp(params) {
     const prop = this;
 
+    let nPopupHeight = -1;
+
     let propsObj = getVal(params,"propsObj",mainPropsObj);
     let sPropType = getVal(params,"propType","basicProperty");
     let sObjPropName = getVal(params,"objPropName","???");
@@ -617,7 +692,7 @@ function CreateProp(params) {
     let nIndexNum = getVal(params,"indexNum",0);
     let vBeginEditValue;
     let vPendingValue;
-    let bEditingValue = false;
+    let bEditingPropValue = false;
     let propLevelChangeEventHandlers = [];
 
     if (typeof optionSet === "undefined" && sDataType==="boolean") {
@@ -656,8 +731,14 @@ function CreateProp(params) {
                     return;
                 } // end if
 
+                if (sDataType === "int") {
+                    vNewValue = Math.floor(vNewValue)
+                } // end if
+
                 if (vNewValue !== propsObj[sObjPropName]) {
                     propsObj[sObjPropName] = vNewValue;
+                    runChangeEventHandlers(prop, sOldValue, sNewValue, "valueSetOnPropObj");
+                    runPropLevelChangeEventHandlers(sOldValue, sNewValue, "valueSetOnPropObj")
                 } // end if
                 
             } // end of setter code!
@@ -742,8 +823,8 @@ function CreateProp(params) {
             orvPropColorCodeNd.innerText = el.value;
 
             if (sOldValue !== sNewValue) {
-                runChangeEventHandlers(prop, sOldValue, sNewValue);
-                runPropLevelChangeEventHandlers(sOldValue, sNewValue)
+                runChangeEventHandlers(prop, sOldValue, sNewValue, "colorChangedWithColorPickerDialog");
+                runPropLevelChangeEventHandlers(sOldValue, sNewValue, "colorChangedWithColorPickerDialog")
             } // end if
             
         } // end if
@@ -776,7 +857,7 @@ function CreateProp(params) {
    * 
    *   #run_prop_level_change_event_handlers
    ********************************************************************************/     
-   function runPropLevelChangeEventHandlers(vOldValue,vNewValue) {
+   function runPropLevelChangeEventHandlers(vOldValue,vNewValue, sOperation) {
        const nMax = propLevelChangeEventHandlers.length;
 
        for (let n=0; n< nMax; n++) {           
@@ -785,6 +866,7 @@ function CreateProp(params) {
            customEventObj = {};
            customEventObj.level = "property"
            customEventObj.event = "change"
+           customEventObj.operation = sOperation;
            customEventObj.timestamp = new Date();
            customEventObj.propertyObj = prop;
            customEventObj.oldValue = vOldValue;
@@ -804,13 +886,22 @@ function CreateProp(params) {
     * 
     ********************************************************************************/      
     prop.selProp = function() {
+
+        prop.hideDropdown; // if dropdown is around for property for any reason, hide it!
+
         const propNameEl = document.getElementById(propId("orvPropName"));
         propNameEl.className = "orvPropNameSel"
 
         const orvPropDescPanelTitleNd = document.getElementById("orvPropDescPanelTitle");
         const orvPropDescPanelDetailsNd = document.getElementById("orvPropDescPanelDetails");
 
-        orvPropDescPanelTitleNd.innerHTML = "Selected Property: <i>"+sPropName+"</i>";
+        let sPropTitle = "Selected Property: <i>"+sPropName+"</i>";
+
+        if (bReadOnly) {
+            sPropTitle = sPropTitle + "&nbsp;&nbsp;&nbsp;<span class='readOnlyNote'>(read only)</span>"
+        } // end if
+
+        orvPropDescPanelTitleNd.innerHTML = sPropTitle;
         orvPropDescPanelDetailsNd.innerText = sDescr;
 
         if (Array.isArray(optionSet)) {
@@ -841,7 +932,7 @@ function CreateProp(params) {
             dropdownBtnNd.addEventListener("click", dropdownToggle);
 
             propNd.appendChild(dropdownBtnNd)
-        } // end if
+        } // end if (Array.isArray(optionSet))
 
     } // end of prop.selProp() method
 
@@ -881,6 +972,25 @@ function CreateProp(params) {
 
    /********************************************************************************
     * 
+    *   #prop_hide_dropdown_method
+    * 
+    *   Hide dropdown... if it is currently being shown...
+    *   if it is already hidden, it will Remain hidden!
+    ********************************************************************************/    
+    prop.hideDropdown = function() {
+
+        let orvPropDropdown = document.getElementsByClassName("orvPropDropdownList")[0]
+        if (typeof orvPropDropdown !== "undefined") {
+            dropdownToggle({})
+        } // end if
+
+    } // end of prop.hideDropdown() method
+
+
+
+
+   /********************************************************************************
+    * 
     *   #drop_down_toggle
     * 
     *   Builds / Shows / and Hides dropdown list of possible values for
@@ -895,8 +1005,18 @@ function CreateProp(params) {
         const bdy = document.getElementsByTagName("BODY")[0];
 
         if (dropdownNd === null) {
+
+            vBeginEditValue = propsObj[sObjPropName]
+            vPendingValue = vBeginEditValue
+
             dropdownNd = document.createElement("div");
             dropdownNd.id = propId("orvPropDropdown");
+
+            // below makes dropdown able to take keyboard input
+            // ... for arrow keys, enter key, ESC key, etc.
+            dropdownNd.setAttribute("tabindex", "-1");
+            dropdownNd.style.outlineStyle = "none";
+
             dropdownNd.className = "orvPropDropdownList"
             dropdownNd.style.width = (propValueEl.offsetWidth+3)+"px"
             
@@ -917,10 +1037,13 @@ function CreateProp(params) {
 
             let nHeight = nShowEntries * 18 ;
             dropdownNd.style.height = (nHeight)+"px";
+            nPopupHeight = nHeight; // save at property object level for later use.
 
             const s = [];
             const Q = '"';
             let bItemAlreadySelected = false;
+            let nCalcScrollTop = 0;
+            let nSelItmScrollTop = -1;
 
             s.push("<ul class='orvPropsList' ")
             s.push("style=")
@@ -931,6 +1054,7 @@ function CreateProp(params) {
 
             for (let n=0;n<nEntries;n++) {
                 const lstOpt = optionSet[n];
+                
                 const sOptionType = getVal(lstOpt,"optionType","option")
                 const sCaption = getVal(lstOpt,"caption",lstOpt.value)
                 let sLstItmClass = "orvPropDropdownListItm"
@@ -938,12 +1062,15 @@ function CreateProp(params) {
                 if (sOptionType === "heading") {
                     s.push("<li class='orvPropDropdownListHdr' >")
                 } else {
-                    if (lstOpt.value === propsObj[sObjPropName]) {
+                    if (lstOpt.value === propsObj[sObjPropName]) {                        
                         sLstItmClass = "orvPropDropdownListItmSel"
                         bItemAlreadySelected = true;
+                        nCurrentDropdownSelIndex = n; // set Dropdown Select Index!
+                        nStartingDropdownSelIndex = n; // set Dropdown Select Index (Starting)!
                     } // end if
     
                     s.push("<li class='"+sLstItmClass+"' ")
+                    s.push("id="+Q+propId("orvPropDropdownItm-"+(n))+Q+" ")
 
                     s.push(" data-idx="+Q+n+Q)
                     s.push(">")
@@ -985,27 +1112,333 @@ function CreateProp(params) {
 
             } // next n
 
+            // a little extra breathing room at the bottom of the list...
+            s.push("<li class='orvPropDropdownListItmSpacer'></li>")
+
+
             s.push("</ul>")
             
             dropdownNd.innerHTML = s.join("");
 
-            console.dir(dropdownNd)
+            
+
+
+            //console.dir(dropdownNd)
 
             dropdownNd.addEventListener("click", procPropOptionSelected);
+            dropdownNd.addEventListener("keydown", keyNavDropdown);
+            dropdownNd.addEventListener("scroll", dropdownScroll);
 
             bdy.appendChild(dropdownNd);
 
+            // to accurately figure scrollTop for each item, it must be done
+            // AFTER it is added to the DOM!
+            const nMaxScrollTop = dropdownNd.scrollHeight - nPopupHeight ;
+
+            for (let n=0;n<nEntries;n++) {
+                const lstOpt = optionSet[n];
+                const sOptionType = getVal(lstOpt,"optionType","option")
+                
+                lstOpt.scrollTop = nCalcScrollTop;
+
+                if (nCalcScrollTop<=nMaxScrollTop) {
+                    if (sOptionType === "heading") {                    
+                        nCalcScrollTop = nCalcScrollTop + 12;
+                    } else {
+                        if (lstOpt.value === propsObj[sObjPropName]) {
+                            nSelItmScrollTop = lstOpt.scrollTop; // 
+                        } // end if
+
+                        nCalcScrollTop = nCalcScrollTop + 18;  
+                    } // end if/else
+
+                    if (nCalcScrollTop > nMaxScrollTop) {
+                        nCalcScrollTop = nMaxScrollTop;
+                    } // end if
+                } // end if
+                
+                console.log("lstOpt.scrollTop="+lstOpt.scrollTop+"   ("+sOptionType+")")
+
+            } // next n
+
             if (bItemAlreadySelected) {
-                const orvPropDropdownListItmSelNd = document.getElementsByClassName("orvPropDropdownListItmSel")[0];
-                orvPropDropdownListItmSelNd.scrollIntoView({behavior:"smooth",block:"end"});
+                //const orvPropDropdownListItmSelNd = document.getElementsByClassName("orvPropDropdownListItmSel")[0];
+                //console.log("about to call scrollIntoView() method... 🙄")
+                // see:  https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView
+                //orvPropDropdownListItmSelNd.scrollIntoView({behavior:"smooth",block:"end",inline:"nearest"});
+                // **** NOTE: this isn't working quite like I expected.
+                // ****      so, I am doing my own routine to scroll the selected item into view!
+                //console.log("scrollIntoView() method called.")
+
+                let nCalcSelScrollTop = nSelItmScrollTop + 18;
+                if (nCalcSelScrollTop > dropdownNd.scrollTop) {
+                    console.log("nCalcSelScrollTop="+nCalcSelScrollTop+"  >  dropdownNd.scrollTop="+dropdownNd.scrollTop)
+                    dropdownNd.scrollTop = nCalcSelScrollTop;
+                } // end if
+
             } // end if
+
+            dropdownNd.focus();
 
         } else {
             dropdownNd.removeEventListener("click", procPropOptionSelected);
+            dropdownNd.removeEventListener("keydown", keyNavDropdown);
+            dropdownNd.removeEventListener("scroll", dropdownScroll);
             dropdownNd.parentElement.removeChild(dropdownNd);
+            containerNd.focus();
         } // end if/else
 
     } // end of function dropdownToggle()
+
+
+
+
+
+    /********************************************************************************
+     * 
+     *   
+     *  #dropdown_scroll
+     * 
+     *  - Called when user scrolls content of dropdown
+     * 
+     *    For now, this function is just mainly for testing and debugging.
+     * 
+     *    Highest value for scroll top:
+     *  
+     *      el.scrollHeight - nPopupHeight   (bottom edge of last item)
+     * 
+     *      el.scrollHeight will vary based on how many items are in list
+     * 
+     * 
+     *    ???
+     *    scrollTop = el.scrollHeight - nPopupHeight - originalScrollTop - item height
+     * 
+     ********************************************************************************/      
+    function dropdownScroll(evt) {
+        const el = evt.srcElement;
+
+        if (el.className !== "orvPropDropdownList") {
+            return;
+        } // end if
+
+        //debugger;
+        const css1="background:yellow;font-weight:bold;";
+        const css2="background:white;font-weight:normal;";
+        console.log("%cPopup Dropdown was scrolled!%c    scrollTop="+el.scrollTop+"   scrollHeight="+el.scrollHeight,css1,css2)
+        console.log("    nPopupHeight="+nPopupHeight)
+    } // end of function dropdownScroll()
+
+
+
+
+    /********************************************************************************
+     * 
+     *   
+     *  #key_nav_dropdown
+     * 
+     *  Manage navigation keystrokes on Dropdown.
+     * 
+     *  this routine should be within scope of property object!
+     * 
+     ********************************************************************************/  
+    function keyNavDropdown(evt) {
+        console.log("keyNavDropdown() called.  keyCode="+evt.keyCode)
+
+        let nKeyCode = evt.keyCode;
+        let liElement,prevLiElement;
+
+        const dropdownNd = document.getElementById(propId("orvPropDropdown"));
+
+        // any changes canceled...
+        if (nKeyCode === ESC_KEY) {
+            if (bReadOnly) {
+                prop.hideDropdown()
+                return;
+            } // end if
+
+            liElement = document.getElementById(propId("orvPropDropdownItm-"+(nStartingDropdownSelIndex)))
+            const evt = {};
+            evt.srcElement = liElement;
+            procPropOptionSelected(evt)
+            return;
+        } // end if
+
+        if (bReadOnly) {
+            // Don't look any further at any keystrokes (since you are not allowed to change the value)
+            return;
+        } // end if
+
+        // commit changes
+        if (nKeyCode === ENTER_KEY) {
+            liElement = document.getElementById(propId("orvPropDropdownItm-"+(nCurrentDropdownSelIndex)))
+            const evt = {};
+            evt.srcElement = liElement;
+            procPropOptionSelected(evt)
+            return;
+        } // end if
+
+        // move back through list index
+        if (nKeyCode === LEFTARROW_KEY || nKeyCode === UPARROW_KEY) {
+            if (nCurrentDropdownSelIndex > 0) {
+                let optionItm;
+                let idx = nCurrentDropdownSelIndex;
+                let prevIdx,sOptionType;
+
+                do {
+                    idx = idx - 1;
+                    optionItm = optionSet[idx];
+                    sOptionType = getVal(optionItm,"optionType","option")
+
+                    if (sOptionType !== "heading") {
+                        // found a non-heading option item, so use it!
+                        prevIdx = nCurrentDropdownSelIndex;
+                        prevLiElement = document.getElementById(propId("orvPropDropdownItm-"+(prevIdx)))
+                        prevLiElement.className = "orvPropDropdownListItm"
+                        nCurrentDropdownSelIndex = idx;
+                        liElement = document.getElementById(propId("orvPropDropdownItm-"+(nCurrentDropdownSelIndex)))
+                        liElement.className = "orvPropDropdownListItmSel"
+                        const evt = {};
+                        evt.srcElement = liElement;
+                        procPropOptionSelected(evt, "leaveDropdownOpen")
+                        //console.log("about to call scrollIntoView() method... -- Scrolling Up")
+                        // see:  https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView
+                        //liElement.scrollIntoView({behavior:"smooth",block:"start",inline:"nearest"});
+                        //console.log("scrollIntoView() method called.")
+                        // **** NOTE: this isn't working quite like I expected.
+                        // ****      so, I am doing my own routine to scroll the selected item into view!
+
+                        
+                        console.log("%c** UP ARROW:","font-weight:bold;")
+                        console.log("  --  optionItm.scrollTop="+optionItm.scrollTop)
+                        console.log("  --         nPopupHeight="+nPopupHeight)
+                        console.log("  -- dropdownNd.scrollTop="+dropdownNd.scrollTop)
+                        
+                        
+                        //scrollTopSettings()
+                        let nThreshold = optionItm.scrollTop - nPopupHeight;
+
+                        if (nThreshold < 0) {
+                            nThreshold = 0;
+                        } // end if
+
+                        if (dropdownNd.scrollTop > nThreshold) {                            
+                            dropdownNd.scrollTop = nThreshold;  // optionItm.scrollTop
+                        } // end if
+
+                        return;
+                    } // end if
+
+                } while(sOptionType === "heading" || idx === 0)
+            } // end if
+
+            return;
+        } // end if
+
+        // move forward through list index
+        if (nKeyCode === RIGHTARROW_KEY || nKeyCode === DOWNARROW_KEY) {
+            let nPlaceholder = nCurrentDropdownSelIndex;
+
+            if (nCurrentDropdownSelIndex < optionSet.length - 1) {
+                let optionItm;
+                let idx = nCurrentDropdownSelIndex;
+                let prevIdx,sOptionType;
+
+                do {
+                    idx = idx + 1;
+                    optionItm = optionSet[idx];
+                    sOptionType = getVal(optionItm,"optionType","option")
+
+                    if (sOptionType !== "heading") {
+                        // found a non-heading option item, so use it!
+                        prevIdx = nCurrentDropdownSelIndex;
+                        prevLiElement = document.getElementById(propId("orvPropDropdownItm-"+(prevIdx)))
+                        //orvPropDropdownListItm
+                        prevLiElement.className = "orvPropDropdownListItm"
+                        nCurrentDropdownSelIndex = idx;
+                        liElement = document.getElementById(propId("orvPropDropdownItm-"+(nCurrentDropdownSelIndex)))
+                        liElement.className = "orvPropDropdownListItmSel"
+                        const evt = {};
+                        evt.srcElement = liElement;
+                        procPropOptionSelected(evt, "leaveDropdownOpen")
+                        console.log("about to call scrollIntoView() method... -- Scrolling Down")
+                        // see:  https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView
+                        //liElement.scrollIntoView({behavior:"smooth",block:"end",inline:"nearest"});
+                        //console.log("scrollIntoView() method called.")
+                        // **** NOTE: this isn't working quite like I expected.
+                        // ****      so, I am doing my own routine to scroll the selected item into view!
+
+                        let nCalcSelScrollTop = optionItm.scrollTop + 18;
+
+                        console.log("%c** DOWN ARROW:","font-weight:bold;")
+                        console.log("  --  optionItm.scrollTop="+optionItm.scrollTop)
+                        console.log("  --         nPopupHeight="+nPopupHeight)
+                        console.log("  -- dropdownNd.scrollTop="+dropdownNd.scrollTop)
+                        console.log("  --    nCalcSelScrollTop="+nCalcSelScrollTop)
+
+                        if (dropdownNd.scrollTop < nCalcSelScrollTop) {
+                            dropdownNd.scrollTop = nCalcSelScrollTop;
+                        } // end if
+
+                        return;
+                    } // end if
+
+                } while(sOptionType === "heading" || idx === optionSet.length - 1)
+            } // end if
+
+            return;
+        } // end if
+
+
+
+    } // end of function keyNavDropdown()
+
+
+
+
+    /********************************************************************************
+     * 
+     *   FOR DEBUGGING  
+     * 
+     *  #scroll_top_settings
+     * 
+     * 
+     ********************************************************************************/      
+    function scrollTopSettings() {
+        const nMax = optionSet.length;
+
+        console.clear();
+        console.log("==================================")
+        console.log("==================================")
+        for (let n=0;n<nMax;n++) {
+            const optionItm = optionSet[n];
+            console.log("optionItm   index="+n+"    scrollTo="+optionItm.scrollTop)
+        } // next n
+
+        console.log("==================================")
+
+    } // end of function scrollTopSettings() 
+
+
+
+    /********************************************************************************
+     * 
+     *   
+     *  #highlight_dropdown_option
+     * 
+     *  Programatically highlight item in dropdown for index
+     *  Also, unhighlight any highlighted item with another index
+     * 
+     *  this routine should be within scope of property object!
+     * 
+     ********************************************************************************/      
+    function highlightDropdownOption(idx) {
+
+        if (nCurrentDropdownSelIndex > -1) {
+            const oldSelItm = optionSet[nCurrentDropdownSelIndex];
+        } // end if
+
+        nCurrentDropdownSelIndex = idx;
+    } // end of function highlightDropdownOption()
 
 
 
@@ -1015,7 +1448,7 @@ function CreateProp(params) {
      *   
      *  #proc_prop_option_selected
      ********************************************************************************/      
-    function procPropOptionSelected(evt) {
+    function procPropOptionSelected(evt, leaveOpen) {
         console.log("procPropOptionSelected() called")
         const el = evt.srcElement;
 
@@ -1024,6 +1457,14 @@ function CreateProp(params) {
             el.className !== "orvColorOptContnr" &&
             el.className !== "orvColorOptSwatch" &&
             el.className !== "orvColorOptCaption") {
+            return;
+        } // end if
+
+        /*************************************************************************
+            If property is Read Only, you can only [look] at the possible options
+            but not change to a different option!
+         *************************************************************************/
+        if (bReadOnly) {
             return;
         } // end if
 
@@ -1048,11 +1489,16 @@ function CreateProp(params) {
 
         propValEl.innerText = sCaption;
 
-        dropdownToggle(); // should toggle dropdown to Hidden/Removed position
+        nCurrentDropdownSelIndex = idx;
+
+        if (typeof leaveOpen === "undefined") {
+            dropdownToggle(); // should toggle dropdown to Hidden/Removed position! 🙂
+        } // end if
+        
 
         if (vOldValue !== vNewValue) {
-            runChangeEventHandlers(prop, vOldValue, vNewValue);
-            runPropLevelChangeEventHandlers(vOldValue, vNewValue)
+            runChangeEventHandlers(prop, vOldValue, vNewValue, "dropdownOptionSelected");
+            runPropLevelChangeEventHandlers(vOldValue, vNewValue, "dropdownOptionSelected")
         } // end if        
 
     } // end of function procPropOptionSelected()
@@ -1093,8 +1539,8 @@ function CreateProp(params) {
             propsObj[sObjPropName] = vPendingValue;
 
             if (vOldValue !== vNewValue) {
-                runChangeEventHandlers(prop, vOldValue, vNewValue);
-                runPropLevelChangeEventHandlers(vOldValue, vNewValue)
+                runChangeEventHandlers(prop, vOldValue, vNewValue, "textEdited");
+                runPropLevelChangeEventHandlers(vOldValue, vNewValue, "textEdited")
             } // end if
             
 
@@ -1115,7 +1561,8 @@ function CreateProp(params) {
             return; // if there is an option set, we will not edit value in a text box!
         } // end if
 
-        bEditingValue = true;
+        bEditingPropValue = true; // property level flag
+        bEditingPanelValue = true;  // panel level flag
         const s=[];
         const Q = '"';
         const propValEl = document.getElementById(propId("orvPropValue"));
@@ -1127,6 +1574,10 @@ function CreateProp(params) {
             s.push(propId("orvPropValueInput"))
             s.push(Q)
             s.push(" maxlength='"+nMaxLength+"' ")
+
+            if (bReadOnly) {
+                s.push(" readonly ")
+            } // end if
 
             s.push(">")
             propValEl.innerHTML = s.join("");
@@ -1141,7 +1592,14 @@ function CreateProp(params) {
 
 
 
-
+  /********************************************************************************
+   * 
+   *   #keystroke_is_non_data_value
+   * 
+   *   Returns (true) if keystroke input is a non-data value
+   *   otherwise, it returns (false)!
+   * 
+   ********************************************************************************/   
     function keystrokeIsNonDataValue(nKeyCode) {
 
         switch(nKeyCode) {
@@ -1149,6 +1607,8 @@ function CreateProp(params) {
             case ENTER_KEY:
             case BACKSPACE_KEY:
             case LEFTARROW_KEY:
+            case UPARROW_KEY:
+            case DOWNARROW_KEY:
             case RIGHTARROW_KEY:
             case HOME_KEY:
             case END_KEY:
@@ -1167,11 +1627,11 @@ function CreateProp(params) {
 
 
 
-   /********************************************************************************
-    * 
-    *   #text_box_handle_keydown
-    * 
-    ********************************************************************************/    
+  /********************************************************************************
+   * 
+   *   #text_box_handle_keydown
+   * 
+   ********************************************************************************/    
    function textBoxHandleKeydown(evt) {
        console.log("textBoxHandleKeydown() called.   keyCode="+evt.keyCode)
        let nKeyCode = evt.keyCode;
@@ -1227,6 +1687,9 @@ function CreateProp(params) {
                 altGuiDomEl.innerText = vPendingValue;
             } // end if
 
+            bEditingPropValue = false;
+            bEditingPanelValue = false;  // panel level flag
+            containerNd.focus(); // so it can pick up keystrokes once again!
             return;
         } // end if (nKeyCode===ESC_KEY)
 
@@ -1234,6 +1697,9 @@ function CreateProp(params) {
         if (nKeyCode===ENTER_KEY) {
             console.log("Enter key pressed")
             prop.commitChanges();
+            bEditingPropValue = false;
+            bEditingPanelValue = false;  // panel level flag
+            containerNd.focus(); // so it can pick up keystrokes once again!
             return;
         } // end if
 
@@ -1253,6 +1719,11 @@ function CreateProp(params) {
    /********************************************************************************
     * 
     *   #prop_toggle_prop_value
+    * 
+    *   - User double clicks property on panel...
+    *   - Value is toggled to next value in dropdown list (option set)
+    *   - if double clicked when at last value, the value is set to first
+    *     one in list!
     ********************************************************************************/    
     prop.togglePropValue = function() {
 
@@ -1464,13 +1935,148 @@ function CreateProp(params) {
 } // end of CreateProp() constructor
 
 
+/********************************************************************************
+ * 
+ *   
+ *   #sel_first_prop
+ * 
+ ********************************************************************************/
+function selFirstProp() {
+    if (nLastSelectedPropIndex > -1) {
+        const lastProp = propsByIndex[nLastSelectedPropIndex];
+        lastProp.deSelProp();
+    } // end if
+
+    const prop = propsByIndex[0];
+    prop.selProp();
+    nLastSelectedPropIndex = 0;
+ } // end of function selFirstProp()
+
+
 
 // #prop_container_event_listeners
 containerNd.addEventListener("click", propsClick);
 containerNd.addEventListener("dblclick", propsDblClick);
+containerNd.addEventListener("keydown", keyDownNav);
+containerNd.addEventListener("focus", panelFocus);
+containerNd.addEventListener("blur", panelBlur);
+
+console.log("--- top level event listeners added")
 
 
 
+
+
+/********************************************************************************
+ * 
+ *   
+ *   #panel_focus
+ * 
+ ********************************************************************************/
+function panelFocus(evt) {
+    console.log("   --- 🔎🔎 %cproperty panel received focus!","color:red;");
+
+    const titleBar = document.getElementsByClassName("orvPropsTitlebar")[0];
+
+    if (typeof titleBar !== "undefined") {        
+        titleBar.className = "orvPropsTitlebarFocus";
+        console.log("   --- titlebar's className has been set to: 'orvPropsTitlebarFocus'")
+    } // end if
+
+} // end of function panelFocus()
+
+
+
+
+/********************************************************************************
+ * 
+ *   
+ *   #panel_blur
+ * 
+ ********************************************************************************/
+function panelBlur(evt) {
+    console.log("   --- 🔎🔎 %cproperty panel Lost focus!","color:red;");
+
+    const titleBar = document.getElementsByClassName("orvPropsTitlebarFocus")[0];
+
+    if (typeof titleBar !== "undefined") {        
+        titleBar.className = "orvPropsTitlebar";
+        console.log("   --- titlebar's className has been set to: 'orvPropsTitlebar'")
+    } // end if
+
+} // end of function panelBlur()
+
+
+
+/********************************************************************************
+ * 
+ *   
+ *   #key_down_nav
+ * 
+ *   Handle navigating properties in panel and items in dropdown using the Keyboard!
+ * 
+ *     - use ESC key to cancel dropdown
+ *     - use up/down arrow keys to move through properties (if dropdown not shown)
+ *     - use ENTER/ left arrow/right arrow to move to First property (if not editing in text box)
+ *     - use up/down arrow keys to move through value options if dropdown IS shown!
+ * 
+ ********************************************************************************/
+ function keyDownNav(evt) {
+     console.log("keyDownNav() called.   keyCode="+evt.keyCode)
+     let nKeyCode = evt.keyCode;
+
+     const lastProp = propsByIndex[nLastSelectedPropIndex];
+
+     // is a dropdown being displayed?
+     let bDropDown = false;
+     let orvPropDropdown = document.getElementsByClassName("orvPropDropdownList")[0]
+     if (typeof orvPropDropdown !== "undefined") {
+        bDropDown = true;
+     } // end if
+
+     if (nKeyCode === ESC_KEY && bDropDown) {
+        lastProp.hideDropdown();
+        return;
+     } // end if
+
+     if (!bDropDown && !bEditingPanelValue) {
+        if (nKeyCode === UPARROW_KEY) {
+            if (nLastSelectedPropIndex > 0) {
+                nLastSelectedPropIndex = nLastSelectedPropIndex - 1;
+                const newProp = propsByIndex[nLastSelectedPropIndex];
+                lastProp.deSelProp();
+                newProp.selProp();
+            } // end if
+
+            return
+        } // end if (nKeyCode === UPARROW_KEY)
+
+
+        if (nKeyCode === DOWNARROW_KEY) {
+            if (nLastSelectedPropIndex < propsByIndex.length - 1) {
+                nLastSelectedPropIndex = nLastSelectedPropIndex + 1;
+                const newProp = propsByIndex[nLastSelectedPropIndex];
+                lastProp.deSelProp();
+                newProp.selProp();
+            } // end if
+            return
+        } // end if (nKeyCode === DOWNARROW_KEY)
+
+        // any keystrokes that would make selected property jump to the 
+        // First property (like in Microsoft's IDE)...
+        switch(nKeyCode) {
+            case LEFTARROW_KEY:
+            case RIGHTARROW_KEY:
+            case ENTER_KEY:
+                selFirstProp();
+                return;
+            default:
+
+        } // end of switch()
+        return;
+     } // end if (!bDropDown && !bEditingPanelValue)
+
+ } // end of function keyDownNav()
 
 
 
@@ -1487,7 +2093,7 @@ function propsClick(evt) {
     console.log("###### "+el.className)
 
     if (el.className !== "orvPropName" && el.className !== "orvPropValue"  && el.className !== "orvPropInpSwatch" 
-        && el.className !== "orvPropSwatch" && el.className !== "orvProp" 
+        && el.className !== "orvPropSwatch" && el.className !== "orvProp" && el.className !== "orvPropNameSel"
         && el.className !== "orvPropColorCode"&& el.className !== "orvPropColorCode2") {
         return;
     } // end if
@@ -1513,6 +2119,10 @@ function propsClick(evt) {
 
     
 } // end of function propsClick()
+
+
+
+
 
 
 
