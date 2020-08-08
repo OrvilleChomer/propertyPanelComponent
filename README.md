@@ -45,9 +45,35 @@ let propPanel;
     sampleContactObj.faxNumber = "708-555-9876";
     sampleContactObj.address = "Mt. Vernon";
     sampleContactObj.state = "Virgina";
-    sampleContactObj.favoriteColor = "blue";
+    sampleContactObj.favoriteColor = "#0000ff";
     sampleContactObj.favoriteDessert = "Cherry Pie";
     sampleContactObj.baseSalary = 50000;
     
     propPanel = new OrvProps('prop_panel');
- } // end of pageSetup() function
+    propPanel.setMainPropsObj(sampleContactObj);
+    
+    // lets add some of these properties to our panel...
+    propPanel.addProp({objPropName:"firstName",propName:"First Name",
+                      descr:"The contact's first name"});
+                                            
+    propPanel.addProp({objPropName:"lastName",propName:"Last Name",
+                      descr:"The contact's last name"});
+                      
+    propPanel.addProp({objPropName:"baseSalary",propName:"Base Salary",dataType:"number",descr:"How much dough did our contact make?"})
+    propPanel.addProp({objPropName:"firstPresident",propName:"First President?",dataType:"boolean",descr:"Were they the first president?"})
+    
+    let colorSet = [];
+    colorSet.push({value:"#ff0000"});  // Red
+    colorSet.push({value:"#008000"});  // Green
+    colorSet.push({value:"#0000ff"});  // Blue
+    colorSet.push({value:"#ffff00"});  // Yellow
+    
+    orvProps.addProp({objPropName:"favoriteColor",propName:"Favorite Color",optionSet:colorSet,
+                      dataType:"color",descr:"Contact's favorite color."})
+                      
+    
+    orvProps.displayPanel();  // this will fill the 'prop_panel' div with a rendered, functional property panel!
+ } // end of pageSetup() function 
+```
+
+Note: The properties will appear in the panel in the order that they were added.
