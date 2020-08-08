@@ -16,7 +16,7 @@ You need a DIV to place your property panel in:
 <div id="prop_panel"></div>
 ```
 
-Let's add some basic styling to it...
+Let's add some really basic styling to it...
 ```
 <style>
    #prop_panel {
